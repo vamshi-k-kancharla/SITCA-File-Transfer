@@ -1,0 +1,11 @@
+{
+  "Version": 1,
+  "Hash": "0fHrCpUYlqJ/XoSEf70zHvcO2nyVsJddmEXh9/yXb0U=",
+  "Source": "SITCAFileTransferService",
+  "BasePath": "_content/SITCAFileTransferService",
+  "Mode": "Default",
+  "ManifestType": "Build",
+  "ReferencedProjectsConfiguration": [],
+  "DiscoveryPatterns": [],
+  "Assets": []
+}
