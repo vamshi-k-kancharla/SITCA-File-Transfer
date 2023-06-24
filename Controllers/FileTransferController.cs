@@ -1,187 +1,118 @@
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+
+using SITCAFileTransferService.Common;
 
 namespace SITCAFileTransferService.Controllers
 {
     [ApiController]
     [Route("[controller]")]
-    public class FileTransfer_POC_Controller : ControllerBase
+    public class FileTransferController : ControllerBase
     {
-        private readonly ILogger<FileTransfer_POC_Controller>? _logger;
+        private readonly ILogger<FileTransferController>? logger;
         IMongoDatabase currentDB;
 
-        public FileTransfer_POC_Controller()
+        public FileTransferController(ILogger<FileTransferController>? inputLogger)
         {
             var dbConnection = new MongoClient("mongodb://localhost:27017");
             currentDB = dbConnection.GetDatabase("FileTransferDB");
+
+            logger = inputLogger;
         }
-
-        /*
-        [HttpPost]
-        [Route("")]
-        [Route("LoadFile/{input1?}/{input2?}")]
-        public IResult LoadFile(int? input1, string? input2)
-        {
-            
-            currentDB.DropCollection("500MB_File");
-            currentDB.CreateCollection("500MB_File");
-
-            var currentCollection = currentDB.GetCollection<FilePartsData>("500MB_File");
-
-            // Insert Documents
-
-            FilePartsData currentFileData = new FilePartsData();
-
-            currentFileData._id = 100;
-            currentFileData.filePartName = "500MB_Part1";
-            currentFileData.filePartData = "This is 500 MB File Data of First Part";
-
-            currentCollection.InsertOne(currentFileData);
-
-            FilePartsData currentFileData2 = new FilePartsData();
-
-            currentFileData2._id = 101;
-            currentFileData2.filePartName = "500MB_Part2";
-            currentFileData2.filePartData = "This is 500 MB File Data of Second Part";
-
-            currentCollection.InsertOne(currentFileData2);
-
-            // Retrieve Collection Names
-
-            var newCollectionCursor = currentDB.ListCollectionNames();
-            string collectionNamesString = "";
-
-            foreach ( var collectionName in newCollectionCursor.ToList() )
-            {
-                collectionNamesString += collectionName + " ";
-            }
-
-            // Retrieve Collection Data
-
-            var query = Builders<FilePartsData>.Filter.Empty;
-            var currentDocuments = currentCollection.Find(query);
-
-            var queriedDocument = currentCollection.Find(x => x.filePartName == "500MB_Part1");
-
-            // Document Count
-
-            var currentDocumentCount_BeforeDeletion = currentDocuments.CountDocuments();
-            var currentQueriedDocumentCount_BeforeDeletion = queriedDocument.CountDocuments();
-
-            // Covert to document List
-
-            var queryDocumentCursor = currentDocuments.ToCursor();
-
-            string collectionDataParts = "";
-
-            foreach ( var currentDoc in queryDocumentCursor.ToList<FilePartsData>())
-            {
-                collectionDataParts += currentDoc.filePartData + " , ";
-
-            }
-
-            // Delete Collection Data
-
-            currentCollection.DeleteOne(x => x.filePartName == "500MB_Part1");
-            var currentDocuments_AfterDelete = currentCollection.Find(query);
-
-            // Update Collection Data Document
-
-            var updateDocument = Builders<FilePartsData>.Update.Set(x => x.filePartData, "This is updated File Part");
-
-            currentCollection.UpdateOne(x => x.filePartName == "500MB_Part2", updateDocument);
-
-            var currentDocuments_AfterUpdate = currentCollection.Find(query);
-
-            // Covert to document List
-
-            queryDocumentCursor = currentDocuments_AfterUpdate.ToCursor();
-
-            string collectionDataParts_AfterUpdate = "";
-
-            foreach (var currentDoc in queryDocumentCursor.ToList<FilePartsData>())
-            {
-                collectionDataParts_AfterUpdate += currentDoc.filePartData + " , ";
-
-            }
-
-            // Document List Of Strings Before and After Creation, Deletion, Updation.
-
-            string retValueString =  "Loading the file from storage drive..Entered input = " + input1 + " , second = " + input2 + "\n" +
-                ", Total Document Data count = " + currentDocumentCount_BeforeDeletion + "\n" +
-                ", Queried Document Data count = " + currentQueriedDocumentCount_BeforeDeletion + "\n" +
-                ", Total Documents File Data = " + collectionDataParts + "\n" +
-                ", Number of documents after deletion = " + currentDocuments_AfterDelete.CountDocuments() + "\n" +
-                ", Total Documents File Data After Deletion and updation = " + collectionDataParts_AfterUpdate + "\n" +
-                ", DB String = " + currentDB.ToString() + "\n" +
-                ", List of Collections :=: " + collectionNamesString;
-
-
-            return Results.Ok(retValueString);
-        }
-        */
-
 
         [HttpPost]
         [Route("")]
-        [Route("LoadFile/{input1?}/{input2?}")]
-        public IResult LoadFile(int? input1, string? input2)
+        [Route("LoadFile/{fileName?}")]
+        public IResult LoadFile(string? fileName)
         {
 
-            IMongoCollection<FilePartsData> currentCollection = CreateDBCollection();
+            string retValueString = "";
 
-            FilePartsData currentFileData = AddDataToCollection(100, "500MB_Part1", "This is 500 MB File Data of First Part");
-            currentCollection.InsertOne(currentFileData);
+            try
+            {
+                IMongoCollection<FilePartsData> currentCollection = CreateDBCollection(fileName);
 
-            FilePartsData currentFileData1 = AddDataToCollection(200, "500MB_Part2", "This is 500 MB File Data of Second Part");
-            currentCollection.InsertOne(currentFileData1);
+                retValueString += "Collection has gotten created , ";
 
-            string collectionNamesString = RetriveCollectionNamesString();
+                string fileNameFQDN = FileTransferServerConfig.inputFilePath + fileName;
 
-            // Retrieve Collection Data
+                FileStream currentFS = System.IO.File.Open(fileNameFQDN, FileMode.Open, FileAccess.ReadWrite);
 
-            var query = Builders<FilePartsData>.Filter.Empty;
-            var currentDocuments = currentCollection.Find(query);
+                retValueString += "File is opened for Read/Write operations , ";
 
-            var queriedDocument = currentCollection.Find(x => x.filePartName == "500MB_Part1");
-
-            // Document Count
-
-            var currentDocumentCount_BeforeDeletion = currentDocuments.CountDocuments();
-            var currentQueriedDocumentCount_BeforeDeletion = queriedDocument.CountDocuments();
-
-            // Retrieve Document data
-
-            var collectionDataParts = RetrieveCollectionPartsData(currentDocuments);
-
-            // Delete Collection Data
-
-            currentCollection.DeleteOne(x => x.filePartName == "500MB_Part1");
-            var currentDocuments_AfterDelete = currentCollection.Find(query);
+                
+                int totalNumberOfBytesRead = 0;
 
 
-            // Update Collection Data Document
+                byte[] bytesToBeRead = new byte[FileTransferServerConfig.chunkSize];
 
-            var updateDocument = Builders<FilePartsData>.Update.Set(x => x.filePartData, "This is updated File Part");
-            currentCollection.UpdateOne(x => x.filePartName == "500MB_Part2", updateDocument);
+                int currentOffset = 0;
 
-            var currentDocuments_AfterUpdate = currentCollection.Find(query);
+                retValueString += "Bytes are being read into the stream , ";
 
-            // Retrieve Collection Document data
+                Console.WriteLine("=========================================================================");
+                Console.WriteLine(" , Start from read stream , current time = " + DateTime.Now.Hour + ":" + 
+                    DateTime.Now.Minute + ":" + DateTime.Now.Second + ":" + DateTime.Now.Millisecond);
 
-            var collectionDataParts_AfterUpdate = RetrieveCollectionPartsData(currentDocuments_AfterUpdate);
+                int fileReadRetValue = currentFS.Read(bytesToBeRead, 0, FileTransferServerConfig.chunkSize);
+
+                totalNumberOfBytesRead += fileReadRetValue;
+
+                while (fileReadRetValue != 0)
+                {
+                    
+                    if(FileTransferServerConfig.bDebug == true)
+                    {
+                        retValueString += " Bytes are read into the stream , currentOffset = " + currentOffset +
+                            "chunkSize = " + FileTransferServerConfig.chunkSize + " , fileReadRetValue = " + fileReadRetValue;
+                    }
+
+                    int currentSizeFileRead = (fileReadRetValue < FileTransferServerConfig.chunkSize) ?
+                        fileReadRetValue : FileTransferServerConfig.chunkSize;
 
 
-            string retValueString = "Loading the file from storage drive..Entered input = " + input1 + " , second = " + input2 + "            " +
-                ", Total Document Data count = " + currentDocumentCount_BeforeDeletion + "            " +
-                ", Queried Document Data count = " + currentQueriedDocumentCount_BeforeDeletion + "            " +
-                ", Total Documents File Data = " + collectionDataParts + "            " +
-                ", Number of documents after deletion = " + currentDocuments_AfterDelete.CountDocuments() + "            " +
-                ", Total Documents File Data After Deletion and updation = " + collectionDataParts_AfterUpdate + "            " +
-                ", DB String = " + currentDB.ToString() + "            " +
-                ", List of Collections :=: " + collectionNamesString;
+                    /*
+                    for (int i = 0; i < currentSizeFileRead; i++)
+                    {
+                        retValueString += (char)bytesToBeRead[i];
+                    }*/
 
+                    currentOffset += FileTransferServerConfig.chunkSize;
+
+                    if (FileTransferServerConfig.bDebug == true)
+                    {
+                        retValueString += " Bytes read : Sub Sequent Read , currentOffset = " + currentOffset +
+                        "chunkSize = " + FileTransferServerConfig.chunkSize + " , fileReadRetValue = " + fileReadRetValue;
+                    }
+
+                    currentFS.Seek(currentOffset, SeekOrigin.Begin);
+                    fileReadRetValue = currentFS.Read(bytesToBeRead, 0, FileTransferServerConfig.chunkSize);
+
+                    totalNumberOfBytesRead += fileReadRetValue;
+
+                    if (FileTransferServerConfig.bDebug == true)
+                    {
+                        retValueString += " Bytes read : end of read loop , currentOffset = " + currentOffset +
+                        "chunkSize = " + FileTransferServerConfig.chunkSize + " , fileReadRetValue = " + fileReadRetValue;
+                    }
+
+                }
+
+                Console.WriteLine(" ,Total Number of Bytes Read = " + totalNumberOfBytesRead);
+
+                Console.WriteLine(" , End of read stream , current time = " + DateTime.Now.Hour + ":" +
+                    DateTime.Now.Minute + ":" + DateTime.Now.Second + ":" + DateTime.Now.Millisecond);
+
+            }
+
+            catch (Exception e)
+            {
+
+                logger.LogInformation("Exception occured while Loading the file into FilePartsData : Exception = " + e.Message);
+            }
 
             return Results.Ok(retValueString);
         }
@@ -189,63 +120,14 @@ namespace SITCAFileTransferService.Controllers
 
         // Create DB Collection
 
-        IMongoCollection<FilePartsData> CreateDBCollection()
+        IMongoCollection<FilePartsData> CreateDBCollection(string fileName)
         {
-            currentDB.DropCollection("500MB_File");
-            currentDB.CreateCollection("500MB_File");
+            currentDB.DropCollection(fileName);
+            currentDB.CreateCollection(fileName);
 
-            return currentDB.GetCollection<FilePartsData>("500MB_File");
+            return currentDB.GetCollection<FilePartsData>(fileName);
         }
 
-        // Insert Documents into Collection
-
-        FilePartsData AddDataToCollection(int id, string partName, string partData)
-        {
-
-            FilePartsData currentFileData = new FilePartsData();
-
-            currentFileData._id = id;
-            currentFileData.filePartName = partName;
-            currentFileData.filePartData = partData;
-
-            return currentFileData;
-
-        }
-
-        // Retrieve Collection Names
-
-        string RetriveCollectionNamesString()
-        {
-
-            var newCollectionCursor = currentDB.ListCollectionNames();
-            string collectionNamesString = "";
-
-            foreach (var collectionName in newCollectionCursor.ToList())
-            {
-                collectionNamesString += collectionName + " ";
-            }
-
-            return collectionNamesString;
-        }
-
-        // Retrieve File Parts Data from Queried documents
-
-        string RetrieveCollectionPartsData(IFindFluent<FilePartsData, FilePartsData> currentDocuments)
-        {
-
-            var queryDocumentCursor = currentDocuments.ToCursor();
-
-            string collectionDataParts = "";
-
-            foreach (var currentDoc in queryDocumentCursor.ToList<FilePartsData>())
-            {
-                collectionDataParts += currentDoc.filePartData + " , ";
-
-            }
-
-            return collectionDataParts;
-        }
-
-}
+    }
 
 }
