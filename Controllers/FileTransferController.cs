@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.IO;
 
 using SITCAFileTransferService.Common;
+using MongoDB.Bson.Serialization.IdGenerators;
 
 namespace SITCAFileTransferService.Controllers
 {
@@ -45,11 +46,12 @@ namespace SITCAFileTransferService.Controllers
 
                 
                 int totalNumberOfBytesRead = 0;
+                int currentIterationCount = 0;
 
 
                 byte[] bytesToBeRead = new byte[FileTransferServerConfig.chunkSize];
 
-                int currentOffset = 0;
+                Int64 currentOffset = 0;
 
                 retValueString += "Bytes are being read into the stream , ";
 
@@ -73,20 +75,23 @@ namespace SITCAFileTransferService.Controllers
                     int currentSizeFileRead = (fileReadRetValue < FileTransferServerConfig.chunkSize) ?
                         fileReadRetValue : FileTransferServerConfig.chunkSize;
 
+                    // Add bytes data to mongo DB.
 
-                    /*
-                    for (int i = 0; i < currentSizeFileRead; i++)
-                    {
-                        retValueString += (char)bytesToBeRead[i];
-                    }*/
+                    FilePartsData newFilePartsToBeAdded = AddDataToCollection(currentIterationCount+1,
+                        "File-Part-" + currentIterationCount, bytesToBeRead);
+                    currentCollection.InsertOne(newFilePartsToBeAdded);
 
-                    currentOffset += FileTransferServerConfig.chunkSize;
+                    // Read next byte set of data
+
+                    currentOffset += (Int64) ( FileTransferServerConfig.chunkSize );
 
                     if (FileTransferServerConfig.bDebug == true)
                     {
                         retValueString += " Bytes read : Sub Sequent Read , currentOffset = " + currentOffset +
                         "chunkSize = " + FileTransferServerConfig.chunkSize + " , fileReadRetValue = " + fileReadRetValue;
                     }
+
+                    // Proceed to read next set of bytes
 
                     currentFS.Seek(currentOffset, SeekOrigin.Begin);
                     fileReadRetValue = currentFS.Read(bytesToBeRead, 0, FileTransferServerConfig.chunkSize);
@@ -99,6 +104,8 @@ namespace SITCAFileTransferService.Controllers
                         "chunkSize = " + FileTransferServerConfig.chunkSize + " , fileReadRetValue = " + fileReadRetValue;
                     }
 
+                    currentIterationCount++;
+
                 }
 
                 Console.WriteLine(" ,Total Number of Bytes Read = " + totalNumberOfBytesRead);
@@ -106,6 +113,7 @@ namespace SITCAFileTransferService.Controllers
                 Console.WriteLine(" , End of read stream , current time = " + DateTime.Now.Hour + ":" +
                     DateTime.Now.Minute + ":" + DateTime.Now.Second + ":" + DateTime.Now.Millisecond);
 
+                Console.WriteLine("=========================================================================");
             }
 
             catch (Exception e)
@@ -126,6 +134,19 @@ namespace SITCAFileTransferService.Controllers
             currentDB.CreateCollection(fileName);
 
             return currentDB.GetCollection<FilePartsData>(fileName);
+        }
+
+        FilePartsData AddDataToCollection(int inputId,string partName, byte[] partData)
+        {
+
+            FilePartsData currentFileData = new FilePartsData();
+
+            currentFileData._id = inputId; // Random.Shared.Next(1000000);
+            currentFileData.filePartName = partName;
+            currentFileData.filePartData = partData;
+
+            return currentFileData;
+
         }
 
     }
