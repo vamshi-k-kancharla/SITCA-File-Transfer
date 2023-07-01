@@ -23,13 +23,14 @@ namespace SITCAFileTransferService.Controllers
             logger = inputLogger;
         }
 
-        [HttpPost]
+        [HttpGet]
         [Route("")]
         [Route("LoadFile/{fileName?}")]
         public IResult LoadFile(string? fileName)
         {
 
             string retValueString = "";
+            FileStream currentFS = null;
 
             try
             {
@@ -39,7 +40,7 @@ namespace SITCAFileTransferService.Controllers
 
                 string fileNameFQDN = FileTransferServerConfig.inputFilePath + fileName;
 
-                FileStream currentFS = System.IO.File.Open(fileNameFQDN, FileMode.Open, FileAccess.ReadWrite);
+                currentFS = System.IO.File.Open(fileNameFQDN, FileMode.Open, FileAccess.ReadWrite);
 
                 retValueString += "File is opened for Read/Write operations , ";
 
@@ -146,12 +147,21 @@ namespace SITCAFileTransferService.Controllers
                     DateTime.Now.Minute + ":" + DateTime.Now.Second + ":" + DateTime.Now.Millisecond);
 
                 Console.WriteLine("=========================================================================");
+
+                currentFS.Close();
+
             }
 
             catch (Exception e)
             {
 
                 logger.LogInformation("Exception occured while Loading the file into FilePartsData : Exception = " + e.Message);
+
+                if(currentFS != null)
+                {
+                    currentFS.Close();
+                }
+
                 return Results.BadRequest("Exception occured while loading the input file  : exception = " + e.Message);
             }
 
