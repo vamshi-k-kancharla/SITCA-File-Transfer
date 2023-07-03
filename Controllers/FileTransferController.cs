@@ -168,7 +168,7 @@ namespace SITCAFileTransferService.Controllers
             return Results.Ok(retValueString);
         }
 
-        [HttpPost]
+        [HttpGet]
         [Route("GetFilePartData/{fileName?}/{filePartName?}")]
         public IResult GetFilePartData(string fileName, string filePartName)
         {
@@ -269,10 +269,24 @@ namespace SITCAFileTransferService.Controllers
 
             for ( int i = 0; i < strTotalFilePartsLoaded.Length; i++ )
             {
+
                 noOfPartsByteArray[i] = (byte)strTotalFilePartsLoaded[i];
             }
 
             return noOfPartsByteArray;
+
+            /*
+
+            byte[] noOfPartsByteArray = new byte[4];
+
+            noOfPartsByteArray[0] =  (byte)( ( inputNum & 0xFF000000 ) >> 6 );
+            noOfPartsByteArray[1] = (byte)((inputNum & 0x00FF0000) >> 4);
+            noOfPartsByteArray[2] = (byte)((inputNum & 0x0000FF00) >> 2);
+            noOfPartsByteArray[3] = (byte)(inputNum & 0x000000FF);
+
+            return noOfPartsByteArray;
+
+            */
         }
 
     }
