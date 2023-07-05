@@ -232,7 +232,7 @@ namespace SITCAFileTransferService.Controllers
                 return Results.BadRequest("Exception occured while querying the file parts Data  : exception = " + e.Message);
             }
 
-            return Results.Ok(retValueString);
+            return Results.Ok(retValueFilePartsData);
         }
 
 
