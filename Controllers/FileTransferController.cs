@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 
+
 using SITCAFileTransferService.Common;
 
 namespace SITCAFileTransferService.Controllers
@@ -31,6 +32,7 @@ namespace SITCAFileTransferService.Controllers
 
             string retValueString = "";
             FileStream currentFS = null;
+            FileStream fileDestination;
 
             try
             {
@@ -39,6 +41,10 @@ namespace SITCAFileTransferService.Controllers
                 retValueString += "Collection has gotten created , ";
 
                 string fileNameFQDN = FileTransferServerConfig.inputFilePath + fileName;
+
+                string fileNameDestFQDN = FileTransferServerConfig.inputFilePath + "SITCAOutputFile.txt";
+
+                fileDestination = System.IO.File.Create(fileNameDestFQDN, 10000, FileOptions.RandomAccess);
 
                 currentFS = System.IO.File.Open(fileNameFQDN, FileMode.Open, FileAccess.ReadWrite);
 
@@ -102,6 +108,9 @@ namespace SITCAFileTransferService.Controllers
                     currentCollection.InsertOne(newFilePartsToBeAdded);
                     totalNumberOfFilePartsLoaded++;
 
+                    fileDestination.Write((currentSizeFileRead < FileTransferServerConfig.chunkSize) ? 
+                        bytesToBeReadLastChunk : bytesToBeRead);
+
                     // Read next byte set of data
 
                     currentOffset += (Int64) ( FileTransferServerConfig.chunkSize );
@@ -149,6 +158,7 @@ namespace SITCAFileTransferService.Controllers
                 Console.WriteLine("=========================================================================");
 
                 currentFS.Close();
+                fileDestination.Close();
 
             }
 
@@ -214,14 +224,20 @@ namespace SITCAFileTransferService.Controllers
                 Console.WriteLine(" , After query execution , before processing = " + DateTime.Now.Hour + ":" +
                     DateTime.Now.Minute + ":" + DateTime.Now.Second + ":" + DateTime.Now.Millisecond);
 
+                Console.WriteLine("GetFilePartData : Read bytes written into a buffer");
+
                 for ( int i = 0; i < retValueFilePartsData.Length; i++)
                 {
+                    Console.Write((char)retValueFilePartsData[i]);
                     retValueString += (char)retValueFilePartsData[i];
                 }
+
+                Console.WriteLine();
 
                 Console.WriteLine(" , After query execution , current time = " + DateTime.Now.Hour + ":" +
                     DateTime.Now.Minute + ":" + DateTime.Now.Second + ":" + DateTime.Now.Millisecond);
 
+                Console.WriteLine("retValueString = " + retValueString);
                 Console.WriteLine("=========================================================================");
 
             }
@@ -232,10 +248,19 @@ namespace SITCAFileTransferService.Controllers
                 return Results.BadRequest("Exception occured while querying the file parts Data  : exception = " + e.Message);
             }
 
-            return Results.Ok(retValueFilePartsData);
+            
+            /*
+            if( filePartName == "NumberOfFileParts" )
+            {
+                return Results.Ok(retValueString);
+            }
+            else
+            {
+                return Results.Ok(retValueFilePartsData);
+            }*/
+
+            return Results.Ok(retValueString);
         }
-
-
 
         // Create DB Collection
 
@@ -274,19 +299,6 @@ namespace SITCAFileTransferService.Controllers
             }
 
             return noOfPartsByteArray;
-
-            /*
-
-            byte[] noOfPartsByteArray = new byte[4];
-
-            noOfPartsByteArray[0] =  (byte)( ( inputNum & 0xFF000000 ) >> 6 );
-            noOfPartsByteArray[1] = (byte)((inputNum & 0x00FF0000) >> 4);
-            noOfPartsByteArray[2] = (byte)((inputNum & 0x0000FF00) >> 2);
-            noOfPartsByteArray[3] = (byte)(inputNum & 0x000000FF);
-
-            return noOfPartsByteArray;
-
-            */
         }
 
     }
