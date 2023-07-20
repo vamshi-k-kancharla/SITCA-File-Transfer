@@ -16,13 +16,27 @@ namespace SITCAFileTransferService.Controllers
         private readonly ILogger<FileTransferController>? logger;
         IMongoDatabase currentDB;
 
-        public FileTransferController(ILogger<FileTransferController>? inputLogger)
+        /// <summary>
+        /// File transfer controller class & constructor.
+        /// </summary>
+        /// 
+        /// <param name="inputLogger"> injected input logger object.</param>
+        /// 
+        public FileTransferController(ILogger<FileTransferController> inputLogger)
         {
             var dbConnection = new MongoClient("mongodb://localhost:27017");
             currentDB = dbConnection.GetDatabase("FileTransferDB");
 
             logger = inputLogger;
         }
+
+        /// <summary>
+        /// Loads the input file into database of File Parts data.
+        /// </summary>
+        /// 
+        /// <param name="fileName"> Name of the input file to be loaded.</param>
+        /// 
+        /// <returns> Returns success / failure response of file loading operation.</returns>
 
         [HttpGet]
         [Route("")]
@@ -36,20 +50,22 @@ namespace SITCAFileTransferService.Controllers
 
             try
             {
-                IMongoCollection<FilePartsData> currentCollection = CreateDBCollection(fileName);
+                IMongoCollection<FilePartsData> currentCollection = DataHelperUtils.CreateDBCollection(currentDB, fileName);
 
                 retValueString += "Collection has gotten created , ";
 
                 string fileNameFQDN = FileTransferServerConfig.inputFilePath + fileName;
-
                 string fileNameDestFQDN = FileTransferServerConfig.inputFilePath + "SITCAOutputFile.txt";
 
+                // Create the destination file handle to write the data to
+                
                 fileDestination = System.IO.File.Create(fileNameDestFQDN, 10000, FileOptions.RandomAccess);
-
                 currentFS = System.IO.File.Open(fileNameFQDN, FileMode.Open, FileAccess.ReadWrite);
+
 
                 retValueString += "File is opened for Read/Write operations , ";
 
+                // Read the file and load the data into database
                 
                 int totalNumberOfBytesRead = 0;
                 int currentIterationCount = 0;
@@ -59,8 +75,10 @@ namespace SITCAFileTransferService.Controllers
                 byte[] bytesToBeRead = new byte[FileTransferServerConfig.chunkSize];
 
                 Int64 currentOffset = 0;
+                int currentChunkNumber = 0;
 
                 retValueString += "Bytes are being read into the stream , ";
+
 
                 Console.WriteLine("=========================================================================");
                 Console.WriteLine(" , Start from read stream , current time = " + DateTime.Now.Hour + ":" + 
@@ -70,6 +88,10 @@ namespace SITCAFileTransferService.Controllers
 
                 totalNumberOfBytesRead += fileReadRetValue;
 
+                Console.WriteLine("=====================================================");
+
+                // Loop through the file to read entire content
+                
                 while (fileReadRetValue != 0)
                 {
                     
@@ -86,21 +108,12 @@ namespace SITCAFileTransferService.Controllers
 
                     // Handle Last Read separately
 
-                    byte[] bytesToBeReadLastChunk = new byte[currentSizeFileRead];
+                    byte[] bytesToBeReadLastChunk = (currentSizeFileRead < FileTransferServerConfig.chunkSize) ?
+                        LoadLastChunkData(currentSizeFileRead, bytesToBeRead) : bytesToBeRead;
 
-                    if ( currentSizeFileRead < FileTransferServerConfig.chunkSize )
-                    {
-                        
-                        for( int i = 0; i < currentSizeFileRead; i++)
-                        {
-                            bytesToBeReadLastChunk[i] = bytesToBeRead[i];
-                        }
+                    // Add Read bytes data to mongo DB.
 
-                    }
-
-                    // Add bytes data to mongo DB.
-
-                    FilePartsData newFilePartsToBeAdded = AddDataToCollection(currentIterationCount+1,
+                    FilePartsData newFilePartsToBeAdded = DataHelperUtils.AddDataToCollection(currentIterationCount+1,
                         "File-Part-" + currentIterationCount,
                         (currentSizeFileRead < FileTransferServerConfig.chunkSize) ? bytesToBeReadLastChunk
                         : bytesToBeRead);
@@ -108,12 +121,31 @@ namespace SITCAFileTransferService.Controllers
                     currentCollection.InsertOne(newFilePartsToBeAdded);
                     totalNumberOfFilePartsLoaded++;
 
+                    // Write data into a pre-designated output file.
+
+                    int currentWriteOffset = currentChunkNumber * FileTransferServerConfig.chunkSize;
+
+                    Console.WriteLine("Current offset value = " + currentWriteOffset);
+
+                    fileDestination.Seek(currentWriteOffset, SeekOrigin.Begin);
                     fileDestination.Write((currentSizeFileRead < FileTransferServerConfig.chunkSize) ? 
                         bytesToBeReadLastChunk : bytesToBeRead);
+
+
+                    // Build debug string for console display.
+
+                    string currentChunkStr = ConvertBytesArrayToCharString(currentSizeFileRead, bytesToBeRead, 
+                        bytesToBeReadLastChunk);
+
+                    if (FileTransferServerConfig.bDebug == true)
+                    {
+                        Console.WriteLine("Current string value = " + currentChunkStr);
+                    }
 
                     // Read next byte set of data
 
                     currentOffset += (Int64) ( FileTransferServerConfig.chunkSize );
+                    currentChunkNumber++;
 
                     if (FileTransferServerConfig.bDebug == true)
                     {
@@ -121,7 +153,7 @@ namespace SITCAFileTransferService.Controllers
                         "chunkSize = " + FileTransferServerConfig.chunkSize + " , fileReadRetValue = " + fileReadRetValue;
                     }
 
-                    // Proceed to read next set of bytes
+                    // Proceed to read next set of bytes in input file
 
                     currentFS.Seek(currentOffset, SeekOrigin.Begin);
                     fileReadRetValue = currentFS.Read(bytesToBeRead, 0, FileTransferServerConfig.chunkSize);
@@ -138,15 +170,17 @@ namespace SITCAFileTransferService.Controllers
 
                 }
 
+                Console.WriteLine("=====================================================");
+
                 Console.WriteLine(" ,Total Number of Bytes Read = " + totalNumberOfBytesRead + 
                     " , Total Number of file parts read " + totalNumberOfFilePartsLoaded);
 
                 
                 // Add Total number of Parts Data
 
-                byte[] noOfPartsByteArray = ConvertIntToByteArray(totalNumberOfFilePartsLoaded);
+                byte[] noOfPartsByteArray = DataHelperUtils.ConvertIntToByteArray(totalNumberOfFilePartsLoaded);
 
-                FilePartsData numberOfFilePartsAddedData = AddDataToCollection(currentIterationCount + 1,
+                FilePartsData numberOfFilePartsAddedData = DataHelperUtils.AddDataToCollection(currentIterationCount + 1,
                     "NumberOfFileParts", noOfPartsByteArray);
 
                 currentCollection.InsertOne(numberOfFilePartsAddedData);
@@ -165,9 +199,12 @@ namespace SITCAFileTransferService.Controllers
             catch (Exception e)
             {
 
-                logger.LogInformation("Exception occured while Loading the file into FilePartsData : Exception = " + e.Message);
+                if(logger != null)
+                {
+                    logger.LogInformation("Exception occured while Loading the file into FilePartsData : Exception = " + e.Message);
+                }
 
-                if(currentFS != null)
+                if (currentFS != null)
                 {
                     currentFS.Close();
                 }
@@ -177,6 +214,15 @@ namespace SITCAFileTransferService.Controllers
 
             return Results.Ok(retValueString);
         }
+
+        /// <summary>
+        /// Gets the file part data retrieved from Mongo DB.
+        /// </summary>
+        /// 
+        /// <param name="fileName"> Name of the input file to retrieve the data from.</param>
+        /// <param name="filePartName"> Name of the file part to be retrieved.</param>
+        /// 
+        /// <returns> File part data in string format.</returns>
 
         [HttpGet]
         [Route("GetFilePartData/{fileName?}/{filePartName?}")]
@@ -188,6 +234,8 @@ namespace SITCAFileTransferService.Controllers
 
             try
             {
+
+                // Retrieve the collection based on fileName
                 
                 IMongoCollection<FilePartsData> currentCollection = currentDB.GetCollection<FilePartsData>(fileName);
 
@@ -199,27 +247,14 @@ namespace SITCAFileTransferService.Controllers
                 IFindFluent<FilePartsData, FilePartsData> queriedFilePartData  = 
                     currentCollection.Find(x => x.filePartName == filePartName);
 
-                if (queriedFilePartData == null)
+                if ( queriedFilePartData == null || queriedFilePartData.FirstOrDefault() == null
+                    || queriedFilePartData.FirstOrDefault().filePartData == null )
                 {
                     Console.Write("Null data found for input query");
                     throw new ArgumentNullException("File data for the input query doesn't exist");
                 }
 
-                var filePartsDataResponse = queriedFilePartData.FirstOrDefault();
-
-                if (filePartsDataResponse == null)
-                {
-                    Console.Write("Null data found for input query. After firstOrDefault ");
-                    throw new ArgumentNullException("File data for the input query doesn't exist");
-                }
-
-                retValueFilePartsData = filePartsDataResponse.filePartData;
-
-                if (retValueFilePartsData == null)
-                {
-                    Console.Write("Null data found for input query, after filePartData");
-                    throw new ArgumentNullException("File data for the input query doesn't exist");
-                }
+                retValueFilePartsData = queriedFilePartData.FirstOrDefault().filePartData;
 
                 Console.WriteLine(" , After query execution , before processing = " + DateTime.Now.Hour + ":" +
                     DateTime.Now.Minute + ":" + DateTime.Now.Second + ":" + DateTime.Now.Millisecond);
@@ -237,7 +272,10 @@ namespace SITCAFileTransferService.Controllers
                 Console.WriteLine(" , After query execution , current time = " + DateTime.Now.Hour + ":" +
                     DateTime.Now.Minute + ":" + DateTime.Now.Second + ":" + DateTime.Now.Millisecond);
 
-                Console.WriteLine("retValueString = " + retValueString);
+                if ( FileTransferServerConfig.bDebug == true )
+                {
+                    Console.WriteLine("retValueString = " + retValueString);
+                }
                 Console.WriteLine("=========================================================================");
 
             }
@@ -248,59 +286,64 @@ namespace SITCAFileTransferService.Controllers
                 return Results.BadRequest("Exception occured while querying the file parts Data  : exception = " + e.Message);
             }
 
-            
-            /*
-            if( filePartName == "NumberOfFileParts" )
-            {
-                return Results.Ok(retValueString);
-            }
-            else
-            {
-                return Results.Ok(retValueFilePartsData);
-            }*/
-
             return Results.Ok(retValueString);
         }
 
-        // Create DB Collection
-
-        IMongoCollection<FilePartsData> CreateDBCollection(string fileName)
-        {
-            currentDB.DropCollection(fileName);
-            currentDB.CreateCollection(fileName);
-
-            return currentDB.GetCollection<FilePartsData>(fileName);
-        }
-
-        FilePartsData AddDataToCollection(int inputId,string partName, byte[] partData)
+        /// <summary>
+        /// Loads the last chunk of data of smaller length than chunk size.
+        /// </summary>
+        /// 
+        /// <param name="currentSizeFileRead"> Number of bytes read in current stream.</param>
+        /// <param name="bytesToBeRead"> Current read bytes buffer array.</param>
+        /// 
+        /// <returns> Loaded last chunk of data.</returns>
+        byte[] LoadLastChunkData(int currentSizeFileRead, byte[] bytesToBeRead)
         {
 
-            FilePartsData currentFileData = new FilePartsData();
+            byte[] bytesToBeReadLastChunk = new byte[currentSizeFileRead];
 
-            currentFileData._id = inputId; // Random.Shared.Next(1000000);
-            currentFileData.filePartName = partName;
-            currentFileData.filePartData = partData;
-
-            return currentFileData;
-
-        }
-
-        byte[] ConvertIntToByteArray(int inputNum)
-        {
-
-            string strTotalFilePartsLoaded = Convert.ToString(inputNum);
-
-            byte[] noOfPartsByteArray = new byte[strTotalFilePartsLoaded.Length];
-
-            for ( int i = 0; i < strTotalFilePartsLoaded.Length; i++ )
+            if (currentSizeFileRead < FileTransferServerConfig.chunkSize)
             {
 
-                noOfPartsByteArray[i] = (byte)strTotalFilePartsLoaded[i];
+                for (int i = 0; i < currentSizeFileRead; i++)
+                {
+                    bytesToBeReadLastChunk[i] = bytesToBeRead[i];
+                }
             }
 
-            return noOfPartsByteArray;
+            return bytesToBeReadLastChunk;
         }
 
-    }
+        /// <summary>
+        /// Converts bytes array into character string.
+        /// </summary>
+        /// 
+        /// <param name="currentSizeFileRead"> Number of bytes read in current stream.</param>
+        /// <param name="bytesToBeRead"> Current read bytes buffer array.</param>
+        /// <param name="bytesToBeReadLastChunk"> Last chunk of data read from the stream.</param>
+        /// 
+        /// <returns> Converted String Array.</returns>
+        string ConvertBytesArrayToCharString(int currentSizeFileRead, byte[] bytesToBeRead, byte[] bytesToBeReadLastChunk)
+        {
 
+            string currentChunkStr = "";
+
+            if (currentSizeFileRead < FileTransferServerConfig.chunkSize)
+            {
+                for (int i = 0; i < bytesToBeReadLastChunk.Length; i++)
+                {
+                    currentChunkStr += (char)bytesToBeReadLastChunk[i];
+                }
+            }
+            else
+            {
+                for (int i = 0; i < bytesToBeRead.Length; i++)
+                {
+                    currentChunkStr += (char)bytesToBeRead[i];
+                }
+            }
+
+            return currentChunkStr;
+        }
+    }
 }
