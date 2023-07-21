@@ -11,12 +11,19 @@ namespace SITCAFileTransferService.Controllers
         private readonly ILogger<FileTransfer_POC_Controller>? _logger;
         IMongoDatabase currentDB;
 
+        /// <summary>
+        /// Constructor that initializes mongo db connection.
+        /// </summary>
         public FileTransfer_POC_Controller()
         {
             var dbConnection = new MongoClient("mongodb://localhost:27017");
             currentDB = dbConnection.GetDatabase("FileTransferDB");
         }
 
+        /// <summary>
+        /// CRUD operations on mongo db and related implementation.
+        /// </summary>
+        /// 
         [HttpPost]
         [Route("")]
         [Route("LoadFile/{input1?}/{input2?}")]
@@ -81,7 +88,11 @@ namespace SITCAFileTransferService.Controllers
         }
 
 
-        // Create DB Collection
+        /// <summary>
+        /// ReCreate DB Collection.
+        /// </summary>
+        /// 
+        /// <returns> Returns created mongo db collection.</returns>
 
         IMongoCollection<FilePartsDataPoc> CreateDBCollection()
         {
@@ -91,10 +102,17 @@ namespace SITCAFileTransferService.Controllers
             return currentDB.GetCollection<FilePartsDataPoc>("500MB_File");
         }
 
-        // Insert Documents into Collection
 
-        // ToDo : Move all the helper functions to Common folder.
-
+        /// <summary>
+        /// Add file parts data to collection.
+        /// </summary>
+        /// 
+        /// <param name="id"> id of current file part.</param>
+        /// <param name="partName"> partName of current file part.</param>
+        /// <param name="partData"> partData of current file part.</param>
+        /// 
+        /// <returns> Created object of file parts data.</returns>
+        ///
         FilePartsDataPoc AddDataToCollection(int id, string partName, string partData)
         {
 
@@ -108,8 +126,12 @@ namespace SITCAFileTransferService.Controllers
 
         }
 
-        // Retrieve Collection Names
-
+        /// <summary>
+        /// Retrieve the string list of collection names.
+        /// </summary>
+        /// 
+        /// <returns> Appended collection names string.</returns>
+        ///
         string RetriveCollectionNamesString()
         {
 
@@ -124,8 +146,15 @@ namespace SITCAFileTransferService.Controllers
             return collectionNamesString;
         }
 
-        // Retrieve File Parts Data from Queried documents
 
+        /// <summary>
+        /// Retrieve File Parts Data from Queried documents.
+        /// </summary>
+        /// 
+        /// <param name="currentDocuments"> Queried & Retrieved documents Data.</param>
+        /// 
+        /// <returns> List of all the current file part data details of queried documents.</returns>
+        ///
         string RetrieveCollectionPartsData(IFindFluent<FilePartsDataPoc, FilePartsDataPoc> currentDocuments)
         {
 
@@ -142,6 +171,6 @@ namespace SITCAFileTransferService.Controllers
             return collectionDataParts;
         }
 
-}
+    }
 
 }
