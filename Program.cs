@@ -10,6 +10,10 @@ builder.Services.AddSwaggerGen();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
+
+ThreadPool.SetMinThreads(1000, 1000);
+ThreadPool.SetMaxThreads(10000, 10000);
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();

@@ -91,6 +91,7 @@ namespace SITCAFileTransferService.Controllers
                 Console.WriteLine("=====================================================");
 
                 // Loop through the file to read entire content
+                // Make load file ( read ) multithreaded and check the difference.
                 
                 while (fileReadRetValue != 0)
                 {
