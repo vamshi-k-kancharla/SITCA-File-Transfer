@@ -73,5 +73,39 @@ namespace SITCAFileTransferService.Common
             return noOfPartsByteArray;
         }
 
+
+        /// <summary>
+        /// Converts bytes array into character string.
+        /// </summary>
+        /// 
+        /// <param name="currentSizeFileRead"> Number of bytes read in current stream.</param>
+        /// <param name="bytesToBeRead"> Current read bytes buffer array.</param>
+        /// <param name="bytesToBeReadLastChunk"> Last chunk of data read from the stream.</param>
+        /// 
+        /// <returns> Converted String Array.</returns>
+        public static string ConvertBytesArrayToCharString(int currentSizeFileRead, byte[] bytesToBeRead, byte[] bytesToBeReadLastChunk)
+        {
+
+            string currentChunkStr = "";
+
+            if (currentSizeFileRead < FileTransferServerConfig.chunkSize)
+            {
+                for (int i = 0; i < bytesToBeReadLastChunk.Length; i++)
+                {
+                    currentChunkStr += (char)bytesToBeReadLastChunk[i];
+                }
+            }
+            else
+            {
+                for (int i = 0; i < bytesToBeRead.Length; i++)
+                {
+                    currentChunkStr += (char)bytesToBeRead[i];
+                }
+            }
+
+            return currentChunkStr;
+        }
+
     }
+
 }

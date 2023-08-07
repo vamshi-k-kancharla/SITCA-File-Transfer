@@ -1,4 +1,6 @@
 
+using MongoDB.Driver;
+
 namespace SITCAFileTransferService
 {
     public class FilePartsDataPoc
@@ -19,6 +21,19 @@ namespace SITCAFileTransferService
 
         public byte[]? filePartData;
 
+    }
+
+    public class LoadThreadObject
+    {
+        public IMongoDatabase currentDB;
+
+        public string fileName;
+
+        public int currentOffset;
+
+        public int currentIterationCount;
+
+        public IMongoCollection<FilePartsData> currentCollection;
     }
 
 }
