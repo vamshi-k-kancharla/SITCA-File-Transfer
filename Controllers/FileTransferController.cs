@@ -50,15 +50,16 @@ namespace SITCAFileTransferService.Controllers
             try
             {
 
-                LoadThreadObject fileReadParamObj = new LoadThreadObject();
-
-                fileReadParamObj.currentDB = currentDataBase;
-                fileReadParamObj.fileName = fileName;
+                List<Thread> fileReadThreads = new List<Thread>();
 
                 IMongoCollection<FilePartsData> currentCollection = DataHelperUtils.CreateDBCollection(currentDataBase, 
                     fileName);
 
-                fileReadParamObj.currentCollection = currentCollection;
+                string fileNameFQDN = FileTransferServerConfig.inputFilePath + fileName;
+
+                currentFS = System.IO.File.Open(fileNameFQDN, FileMode.Open, FileAccess.ReadWrite);
+
+                retValueString += "File is opened for Read/Write operations , ";
 
                 // ToDo : Retrieve file size automatically.
 
@@ -69,11 +70,26 @@ namespace SITCAFileTransferService.Controllers
                 
                 for( int threadNum = 0; threadNum < numberOfThreads; threadNum++ )
                 {
+                    LoadThreadObject fileReadParamObj = new LoadThreadObject();
+
+                    fileReadParamObj.currentDB = currentDataBase;
+                    fileReadParamObj.fileName = fileName;
+
                     fileReadParamObj.currentOffset = threadNum * FileTransferServerConfig.chunkSize;
                     fileReadParamObj.currentIterationCount = threadNum;
 
+                    fileReadParamObj.currentCollection = currentCollection;
+                    fileReadParamObj.currentFS = currentFS;
+
+
+                    Console.WriteLine("Thread is being fired with the following context => fileName = " + fileName +
+                        " ,currentOffset = " + fileReadParamObj.currentOffset + 
+                        " ,currentIterationCount = " + fileReadParamObj.currentIterationCount);
+
                     Thread currentIterationThread = new Thread(SITCAFileLoadAndReadThread.FileLoadAndReadThread);
-                    currentIterationThread.Start();
+                    currentIterationThread.Start(fileReadParamObj);
+
+                    fileReadThreads.Add(currentIterationThread);
                 }
 
                 Console.WriteLine("=====================================================");
@@ -93,7 +109,21 @@ namespace SITCAFileTransferService.Controllers
 
                 Console.WriteLine("=========================================================================");
 
+                while (true)
+                {
+                    if (SITCAFileLoadAndReadThread.AreAllThreadsStopped(fileReadThreads))
+                    {
+                        break;
+                    }
+
+                    Console.WriteLine(" Some of the file read threads are still running...Sleep for some time");
+
+                    Thread.Sleep(2000);
+                }
+
                 currentFS.Close();
+
+                retValueString += "file read is successful";
 
             }
 

@@ -34,6 +34,9 @@ namespace SITCAFileTransferService
         public int currentIterationCount;
 
         public IMongoCollection<FilePartsData> currentCollection;
+
+        public FileStream currentFS;
+
     }
 
 }

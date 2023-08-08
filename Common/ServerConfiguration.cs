@@ -11,8 +11,11 @@ namespace SITCAFileTransferService.Common
         
         public static int chunkSize = 100000;
 
-        public static int fileSize = 100000000;
+        public static int fileSize = 104857600;
 
-        public static bool bDebug = false;
+        public static bool bDebug = true;
+
+        public static Mutex readThreadSyncMutex = new Mutex();
+
     }
 }

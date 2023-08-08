@@ -15,9 +15,10 @@ namespace SITCAFileTransferService.Common
 
         public static void FileLoadAndReadThread(object fileLoadReadParamObj)
         {
-            string retValueString = "";
 
+            string retValueString = "";
             FileStream currentFS = null;
+            bool isTheMutexLocked = false;
 
             try
             {
@@ -27,20 +28,16 @@ namespace SITCAFileTransferService.Common
                 int currentIterationCount = ((LoadThreadObject)fileLoadReadParamObj).currentIterationCount;
 
                 IMongoCollection<FilePartsData> currentCollection = ((LoadThreadObject)fileLoadReadParamObj).currentCollection;
+                currentFS = ((LoadThreadObject)fileLoadReadParamObj).currentFS;
 
-                // Start processing the request.
+                Console.WriteLine("Thread spinned with below context => fileName = " + fileName + 
+                    " ,currentOffset = " + currentOffset + " ,currentIterationCount = " + currentIterationCount);
+
+                // Start processing the request 
 
                 retValueString += "Collection has gotten created , ";
 
-                string fileNameFQDN = FileTransferServerConfig.inputFilePath + fileName;
-
-                currentFS = System.IO.File.Open(fileNameFQDN, FileMode.Open, FileAccess.ReadWrite);
-
-                retValueString += "File is opened for Read/Write operations , ";
-
-                
                 byte[] bytesToBeRead = new byte[FileTransferServerConfig.chunkSize];
-
 
                 retValueString += "Bytes are being read into the stream , ";
 
@@ -49,7 +46,18 @@ namespace SITCAFileTransferService.Common
                 Console.WriteLine(" , Start from read stream , current time = " + DateTime.Now.Hour + ":" +
                     DateTime.Now.Minute + ":" + DateTime.Now.Second + ":" + DateTime.Now.Millisecond);
 
-                int fileReadRetValue = currentFS.Read(bytesToBeRead, currentOffset, FileTransferServerConfig.chunkSize);
+                FileTransferServerConfig.readThreadSyncMutex.WaitOne();
+                isTheMutexLocked = true;
+
+                currentFS.Seek(currentOffset, SeekOrigin.Begin);
+                int fileReadRetValue = currentFS.Read(bytesToBeRead, 0, FileTransferServerConfig.chunkSize);
+                
+                FileTransferServerConfig.readThreadSyncMutex.ReleaseMutex();
+                isTheMutexLocked = false;
+
+                /*
+                RandomAccess.Read(currentFS, bytesToBeRead, currentOffset);
+                */
 
                 Console.WriteLine("=====================================================");
 
@@ -106,6 +114,12 @@ namespace SITCAFileTransferService.Common
                 }
 
                 Console.WriteLine("Some error occured while reading input file data : " + e.Message);
+
+                if( isTheMutexLocked )
+                {
+                    FileTransferServerConfig.readThreadSyncMutex.ReleaseMutex();
+                }
+
             }
 
         }
@@ -133,6 +147,35 @@ namespace SITCAFileTransferService.Common
             }
 
             return bytesToBeReadLastChunk;
+        }
+
+        /// <summary>
+        /// Checks whether all the threads supplied to it are stopped.
+        /// </summary>
+        /// 
+        /// <param name="threadList"> List of all the threads whose status need to be checked for.</param>
+        /// 
+        /// <returns> A boolean with Yes ( for all stopped ) & No ( not all threads stopped ) values.</returns>
+
+        static public bool AreAllThreadsStopped(List<Thread> threadList)
+        {
+            int i = 0;
+
+            for (; i < threadList.Count; i++)
+            {
+
+                if (threadList[i].ThreadState == ThreadState.Running)
+                {
+                    break;
+                }
+            }
+
+            if (i == threadList.Count)
+            {
+                return true;
+            }
+
+            return false;
         }
 
     }
