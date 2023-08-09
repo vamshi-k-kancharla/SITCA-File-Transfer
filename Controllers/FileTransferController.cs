@@ -49,7 +49,6 @@ namespace SITCAFileTransferService.Controllers
 
             try
             {
-
                 List<Thread> fileReadThreads = new List<Thread>();
 
                 IMongoCollection<FilePartsData> currentCollection = DataHelperUtils.CreateDBCollection(currentDataBase, 
@@ -63,12 +62,13 @@ namespace SITCAFileTransferService.Controllers
 
                 // ToDo : Retrieve file size automatically.
 
-                int numberOfThreads = ( FileTransferServerConfig.fileSize % FileTransferServerConfig.chunkSize == 0 ) ?
+                long numOfThreads = ( FileTransferServerConfig.fileSize % FileTransferServerConfig.chunkSize == 0 ) ?
                     ( FileTransferServerConfig.fileSize / FileTransferServerConfig.chunkSize ) :
                     ((FileTransferServerConfig.fileSize / FileTransferServerConfig.chunkSize) + 1 );
 
-                
-                for( int threadNum = 0; threadNum < numberOfThreads; threadNum++ )
+                long numberOfThreads = numOfThreads;
+
+                for ( long threadNum = 0; threadNum < numberOfThreads; threadNum++ )
                 {
                     LoadThreadObject fileReadParamObj = new LoadThreadObject();
 
@@ -96,9 +96,9 @@ namespace SITCAFileTransferService.Controllers
 
                 // Add Total number of Parts Data
 
-                byte[] noOfPartsByteArray = DataHelperUtils.ConvertIntToByteArray(numberOfThreads);
+                byte[] noOfPartsByteArray = DataHelperUtils.ConvertIntToByteArray((int)numberOfThreads);
 
-                FilePartsData numberOfFilePartsAddedData = DataHelperUtils.AddDataToCollection(numberOfThreads + 1,
+                FilePartsData numberOfFilePartsAddedData = DataHelperUtils.AddDataToCollection((int)numberOfThreads + 1,
                     "NumberOfFileParts", noOfPartsByteArray);
 
                 currentCollection.InsertOne(numberOfFilePartsAddedData);
@@ -192,7 +192,7 @@ namespace SITCAFileTransferService.Controllers
 
                 Console.WriteLine("GetFilePartData : Read bytes written into a buffer");
 
-                for ( int i = 0; i < retValueFilePartsData.Length; i++)
+                for ( long i = 0; i < retValueFilePartsData.Length; i++)
                 {
                     Console.Write((char)retValueFilePartsData[i]);
                     retValueString += (char)retValueFilePartsData[i];

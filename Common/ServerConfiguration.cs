@@ -9,11 +9,11 @@ namespace SITCAFileTransferService.Common
     {
         public static string inputFilePath = @"I:\SITCA File Transfer\SITCA Web Service\SourceDirectory\";
         
-        public static int chunkSize = 100000;
+        public static int chunkSize = 15000000;
 
-        public static int fileSize = 104857600;
+        public static long fileSize = 5000000000;
 
-        public static bool bDebug = true;
+        public static bool bDebug = false;
 
         public static Mutex readThreadSyncMutex = new Mutex();
 

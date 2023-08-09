@@ -29,9 +29,9 @@ namespace SITCAFileTransferService
 
         public string fileName;
 
-        public int currentOffset;
+        public long currentOffset;
 
-        public int currentIterationCount;
+        public long currentIterationCount;
 
         public IMongoCollection<FilePartsData> currentCollection;
 
