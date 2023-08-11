@@ -9,9 +9,9 @@ namespace SITCAFileTransferService.Common
     {
         public static string inputFilePath = @"I:\SITCA File Transfer\SITCA Web Service\SourceDirectory\";
         
-        public static int chunkSize = 15000000;
+        public static int chunkSize = 1000000;
 
-        public static long fileSize = 5000000000;
+        public static long fileSize = 1048576000;
 
         public static bool bDebug = false;
 

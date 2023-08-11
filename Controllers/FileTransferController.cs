@@ -190,13 +190,20 @@ namespace SITCAFileTransferService.Controllers
                 Console.WriteLine(" , After query execution , before processing = " + DateTime.Now.Hour + ":" +
                     DateTime.Now.Minute + ":" + DateTime.Now.Second + ":" + DateTime.Now.Millisecond);
 
-                Console.WriteLine("GetFilePartData : Read bytes written into a buffer");
+                Console.WriteLine("GetFilePartData : Read bytes written into a buffer for processing");
+
+                return Results.Ok(retValueFilePartsData);
 
                 for ( long i = 0; i < retValueFilePartsData.Length; i++)
                 {
-                    Console.Write((char)retValueFilePartsData[i]);
+                    if ( FileTransferServerConfig.bDebug )
+                    {
+                        Console.Write((char)retValueFilePartsData[i]);
+                    }
                     retValueString += (char)retValueFilePartsData[i];
                 }
+
+                Console.WriteLine("GetFilePartData : string is built to tackle response");
 
                 Console.WriteLine();
 
