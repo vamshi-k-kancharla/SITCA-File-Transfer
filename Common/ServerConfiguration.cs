@@ -11,7 +11,7 @@ namespace SITCAFileTransferService.Common
         
         public static int chunkSize = 1000000;
 
-        public static long fileSize = 1048576000;
+        public static long fileSize = 104857600;
 
         public static bool bDebug = false;
 

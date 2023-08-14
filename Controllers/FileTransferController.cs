@@ -192,29 +192,20 @@ namespace SITCAFileTransferService.Controllers
 
                 Console.WriteLine("GetFilePartData : Read bytes written into a buffer for processing");
 
-                return Results.Ok(retValueFilePartsData);
-
-                for ( long i = 0; i < retValueFilePartsData.Length; i++)
+                if (filePartName == "NumberOfFileParts")
                 {
-                    if ( FileTransferServerConfig.bDebug )
+
+                    for (int i = 0; i < retValueFilePartsData.Length; i++)
                     {
-                        Console.Write((char)retValueFilePartsData[i]);
+                        retValueString += (char)(retValueFilePartsData[i]);
                     }
-                    retValueString += (char)retValueFilePartsData[i];
+
+                    return Results.Ok(retValueString);
                 }
-
-                Console.WriteLine("GetFilePartData : string is built to tackle response");
-
-                Console.WriteLine();
-
-                Console.WriteLine(" , After query execution , current time = " + DateTime.Now.Hour + ":" +
-                    DateTime.Now.Minute + ":" + DateTime.Now.Second + ":" + DateTime.Now.Millisecond);
-
-                if ( FileTransferServerConfig.bDebug == true )
+                else
                 {
-                    Console.WriteLine("retValueString = " + retValueString);
+                    return Results.Ok(retValueFilePartsData);
                 }
-                Console.WriteLine("=========================================================================");
 
             }
 
