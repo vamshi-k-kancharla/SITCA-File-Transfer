@@ -82,9 +82,13 @@ namespace SITCAFileTransferService.Controllers
                     fileReadParamObj.currentFS = currentFS;
 
 
-                    Console.WriteLine("Thread is being fired with the following context => fileName = " + fileName +
-                        " ,currentOffset = " + fileReadParamObj.currentOffset + 
+                    if (FileTransferServerConfig.bFirstLevelDebug == true)
+                    {
+
+                        Console.WriteLine("Thread is being fired with the following context => fileName = " + fileName +
+                        " ,currentOffset = " + fileReadParamObj.currentOffset +
                         " ,currentIterationCount = " + fileReadParamObj.currentIterationCount);
+                    }
 
                     Thread currentIterationThread = new Thread(SITCAFileLoadAndReadThread.FileLoadAndReadThread);
                     currentIterationThread.Start(fileReadParamObj);
@@ -92,7 +96,11 @@ namespace SITCAFileTransferService.Controllers
                     fileReadThreads.Add(currentIterationThread);
                 }
 
-                Console.WriteLine("=====================================================");
+                if (FileTransferServerConfig.bFirstLevelDebug == true)
+                {
+
+                    Console.WriteLine("=====================================================");
+                }
 
                 // Add Total number of Parts Data
 
@@ -104,10 +112,14 @@ namespace SITCAFileTransferService.Controllers
                 currentCollection.InsertOne(numberOfFilePartsAddedData);
 
 
-                Console.WriteLine(" , End of read stream , current time = " + DateTime.Now.Hour + ":" +
+                if (FileTransferServerConfig.bFirstLevelDebug == true)
+                {
+
+                    Console.WriteLine(" , End of read stream , current time = " + DateTime.Now.Hour + ":" +
                     DateTime.Now.Minute + ":" + DateTime.Now.Second + ":" + DateTime.Now.Millisecond);
 
-                Console.WriteLine("=========================================================================");
+                    Console.WriteLine("=========================================================================");
+                }
 
                 while (true)
                 {
@@ -132,7 +144,7 @@ namespace SITCAFileTransferService.Controllers
 
                 if(logger != null)
                 {
-                    logger.LogInformation("Exception occured while Loading the file into FilePartsData : Exception = " + e.Message);
+                    logger.LogError("Exception occured while Loading the file into FilePartsData : Exception = " + e.Message);
                 }
 
                 if (currentFS != null)
@@ -171,9 +183,13 @@ namespace SITCAFileTransferService.Controllers
                 IMongoCollection<FilePartsData> currentCollection = currentDataBase.GetCollection<FilePartsData>(fileName);
 
 
-                Console.WriteLine("=========================================================================");
-                Console.WriteLine(" , Before query execution  , current time = " + DateTime.Now.Hour + ":" +
-                    DateTime.Now.Minute + ":" + DateTime.Now.Second + ":" + DateTime.Now.Millisecond);
+                if (FileTransferServerConfig.bFirstLevelDebug == true)
+                {
+
+                    Console.WriteLine("=========================================================================");
+                    Console.WriteLine(" , Before query execution  , current time = " + DateTime.Now.Hour + ":" +
+                        DateTime.Now.Minute + ":" + DateTime.Now.Second + ":" + DateTime.Now.Millisecond);
+                }
 
                 IFindFluent<FilePartsData, FilePartsData> queriedFilePartData  = 
                     currentCollection.Find(x => x.filePartName == filePartName);
@@ -187,10 +203,14 @@ namespace SITCAFileTransferService.Controllers
 
                 retValueFilePartsData = queriedFilePartData.FirstOrDefault().filePartData;
 
-                Console.WriteLine(" , After query execution , before processing = " + DateTime.Now.Hour + ":" +
+                if (FileTransferServerConfig.bFirstLevelDebug == true)
+                {
+
+                    Console.WriteLine(" , After query execution , before processing = " + DateTime.Now.Hour + ":" +
                     DateTime.Now.Minute + ":" + DateTime.Now.Second + ":" + DateTime.Now.Millisecond);
 
-                Console.WriteLine("GetFilePartData : Read bytes written into a buffer for processing");
+                    Console.WriteLine("GetFilePartData : Read bytes written into a buffer for processing");
+                }
 
                 if (filePartName == "NumberOfFileParts")
                 {

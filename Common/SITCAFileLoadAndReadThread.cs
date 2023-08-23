@@ -30,8 +30,12 @@ namespace SITCAFileTransferService.Common
                 IMongoCollection<FilePartsData> currentCollection = ((LoadThreadObject)fileLoadReadParamObj).currentCollection;
                 currentFS = ((LoadThreadObject)fileLoadReadParamObj).currentFS;
 
-                Console.WriteLine("Thread spinned with below context => fileName = " + fileName + 
+                if (FileTransferServerConfig.bFirstLevelDebug == true)
+                {
+
+                    Console.WriteLine("Thread spinned with below context => fileName = " + fileName +
                     " ,currentOffset = " + currentOffset + " ,currentIterationCount = " + currentIterationCount);
+                }
 
                 // Start processing the request 
 
@@ -41,10 +45,13 @@ namespace SITCAFileTransferService.Common
 
                 retValueString += "Bytes are being read into the stream , ";
 
+                if (FileTransferServerConfig.bFirstLevelDebug == true)
+                {
 
-                Console.WriteLine("=========================================================================");
-                Console.WriteLine(" , Start from read stream , current time = " + DateTime.Now.Hour + ":" +
-                    DateTime.Now.Minute + ":" + DateTime.Now.Second + ":" + DateTime.Now.Millisecond);
+                    Console.WriteLine("=========================================================================");
+                    Console.WriteLine(" , Start from read stream , current time = " + DateTime.Now.Hour + ":" +
+                        DateTime.Now.Minute + ":" + DateTime.Now.Second + ":" + DateTime.Now.Millisecond);
+                }
 
                 /*
                 FileTransferServerConfig.readThreadSyncMutex.WaitOne();
@@ -59,7 +66,11 @@ namespace SITCAFileTransferService.Common
 
                 long fileReadRetValue = RandomAccess.Read(currentFS.SafeFileHandle, bytesToBeRead, currentOffset);
 
-                Console.WriteLine("=====================================================");
+                if (FileTransferServerConfig.bFirstLevelDebug == true)
+                {
+
+                    Console.WriteLine("=====================================================");
+                }
 
                 long currentSizeFileRead = (fileReadRetValue < FileTransferServerConfig.chunkSize) ?
                     fileReadRetValue : FileTransferServerConfig.chunkSize;
@@ -109,12 +120,16 @@ namespace SITCAFileTransferService.Common
                     "chunkSize = " + FileTransferServerConfig.chunkSize + " , fileReadRetValue = " + fileReadRetValue;
                 }
 
-                Console.WriteLine("=====================================================");
+                if (FileTransferServerConfig.bFirstLevelDebug == true)
+                {
 
-                Console.WriteLine(" , End of read stream , current time = " + DateTime.Now.Hour + ":" +
-                    DateTime.Now.Minute + ":" + DateTime.Now.Second + ":" + DateTime.Now.Millisecond);
+                    Console.WriteLine("=====================================================");
 
-                Console.WriteLine("=========================================================================");
+                    Console.WriteLine(" , End of read stream , current time = " + DateTime.Now.Hour + ":" +
+                        DateTime.Now.Minute + ":" + DateTime.Now.Second + ":" + DateTime.Now.Millisecond);
+
+                    Console.WriteLine("=========================================================================");
+                }
 
             }
 
