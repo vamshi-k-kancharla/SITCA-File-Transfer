@@ -25,110 +25,111 @@ namespace SITCAFileTransferService.Common
                 IMongoDatabase currentDB = ((LoadThreadObject)fileLoadReadParamObj).currentDB;
                 string fileName = ((LoadThreadObject)fileLoadReadParamObj).fileName;
                 long currentOffset = ((LoadThreadObject)fileLoadReadParamObj).currentOffset;
-                long currentIterationCount = ((LoadThreadObject)fileLoadReadParamObj).currentIterationCount;
+                long startPart = ((LoadThreadObject)fileLoadReadParamObj).startPart;
+                long numberOfSubParts = ((LoadThreadObject)fileLoadReadParamObj).numOfSubParts;
 
                 IMongoCollection<FilePartsData> currentCollection = ((LoadThreadObject)fileLoadReadParamObj).currentCollection;
                 currentFS = ((LoadThreadObject)fileLoadReadParamObj).currentFS;
 
-                if (FileTransferServerConfig.bFirstLevelDebug == true)
+
+                long currentIterationCount = 0; // ((LoadThreadObject)fileLoadReadParamObj).currentIterationCount;
+
+                for (long currentThreadPart = startPart; currentThreadPart < startPart + numberOfSubParts;
+                    currentThreadPart++)
                 {
 
-                    Console.WriteLine("Thread spinned with below context => fileName = " + fileName +
-                    " ,currentOffset = " + currentOffset + " ,currentIterationCount = " + currentIterationCount);
-                }
+                    currentIterationCount = currentThreadPart;
+                    currentOffset = currentThreadPart * FileTransferServerConfig.chunkSize;
 
-                // Start processing the request 
+                    if (FileTransferServerConfig.bFirstLevelDebug == true)
+                    {
 
-                retValueString += "Collection has gotten created , ";
+                        Console.WriteLine("Thread spinned with below context => fileName = " + fileName +
+                        " ,currentOffset = " + currentOffset + " ,currentIterationCount = " + currentIterationCount);
+                    }
 
-                byte[] bytesToBeRead = new byte[FileTransferServerConfig.chunkSize];
+                    // Start processing the request 
 
-                retValueString += "Bytes are being read into the stream , ";
+                    retValueString += "Collection has gotten created , ";
 
-                if (FileTransferServerConfig.bFirstLevelDebug == true)
-                {
+                    byte[] bytesToBeRead = new byte[FileTransferServerConfig.chunkSize];
 
-                    Console.WriteLine("=========================================================================");
-                    Console.WriteLine(" , Start from read stream , current time = " + DateTime.Now.Hour + ":" +
-                        DateTime.Now.Minute + ":" + DateTime.Now.Second + ":" + DateTime.Now.Millisecond);
-                }
+                    retValueString += "Bytes are being read into the stream , ";
 
-                /*
-                FileTransferServerConfig.readThreadSyncMutex.WaitOne();
-                isTheMutexLocked = true;
+                    if (FileTransferServerConfig.bFirstLevelDebug == true)
+                    {
 
-                currentFS.Seek(currentOffset, SeekOrigin.Begin);
-                long fileReadRetValue = currentFS.Read(bytesToBeRead, 0, FileTransferServerConfig.chunkSize);
-                
-                FileTransferServerConfig.readThreadSyncMutex.ReleaseMutex();
-                isTheMutexLocked = false;
-                */
+                        Console.WriteLine("=========================================================================");
+                        Console.WriteLine(" , Start from read stream , current time = " + DateTime.Now.Hour + ":" +
+                            DateTime.Now.Minute + ":" + DateTime.Now.Second + ":" + DateTime.Now.Millisecond);
+                    }
 
-                long fileReadRetValue = RandomAccess.Read(currentFS.SafeFileHandle, bytesToBeRead, currentOffset);
+                    long fileReadRetValue = RandomAccess.Read(currentFS.SafeFileHandle, bytesToBeRead, currentOffset);
 
-                if (FileTransferServerConfig.bFirstLevelDebug == true)
-                {
+                    if (FileTransferServerConfig.bFirstLevelDebug == true)
+                    {
 
-                    Console.WriteLine("=====================================================");
-                }
+                        Console.WriteLine("=====================================================");
+                    }
 
-                long currentSizeFileRead = (fileReadRetValue < FileTransferServerConfig.chunkSize) ?
-                    fileReadRetValue : FileTransferServerConfig.chunkSize;
+                    long currentSizeFileRead = (fileReadRetValue < FileTransferServerConfig.chunkSize) ?
+                        fileReadRetValue : FileTransferServerConfig.chunkSize;
 
-                if (FileTransferServerConfig.bDebug == true)
-                {
-                    Console.WriteLine("SITCAFileLoadAndReadThread: Current size of filePart Read = " + currentSizeFileRead);
-                }
+                    if (FileTransferServerConfig.bDebug == true)
+                    {
+                        Console.WriteLine("SITCAFileLoadAndReadThread: Current size of filePart Read = " + currentSizeFileRead);
+                    }
 
-                // Handle Last Read separately
+                    // Handle Last Read separately
 
-                byte[] bytesToBeReadLastChunk = (currentSizeFileRead < FileTransferServerConfig.chunkSize) ?
-                    LoadLastChunkData(currentSizeFileRead, bytesToBeRead) : bytesToBeRead;
+                    byte[] bytesToBeReadLastChunk = (currentSizeFileRead < FileTransferServerConfig.chunkSize) ?
+                        LoadLastChunkData(currentSizeFileRead, bytesToBeRead) : bytesToBeRead;
 
-                // Add Read bytes data to mongo DB.
+                    // Add Read bytes data to mongo DB.
 
-                if (FileTransferServerConfig.bDebug == true)
-                {
-                    Console.WriteLine("SITCAFileLoadAndReadThread : data is being written into database collection");
-                }
+                    if (FileTransferServerConfig.bDebug == true)
+                    {
+                        Console.WriteLine("SITCAFileLoadAndReadThread : data is being written into database collection");
+                    }
 
-                FilePartsData newFilePartsToBeAdded = DataHelperUtils.AddDataToCollection((int)(currentIterationCount + 1),
-                    "File-Part-" + currentIterationCount,
-                    (currentSizeFileRead < FileTransferServerConfig.chunkSize) ? bytesToBeReadLastChunk
-                    : bytesToBeRead);
+                    FilePartsData newFilePartsToBeAdded = DataHelperUtils.AddDataToCollection((int)(currentIterationCount + 1),
+                        "File-Part-" + currentIterationCount,
+                        (currentSizeFileRead < FileTransferServerConfig.chunkSize) ? bytesToBeReadLastChunk
+                        : bytesToBeRead);
 
-                currentCollection.InsertOne(newFilePartsToBeAdded);
+                    currentCollection.InsertOne(newFilePartsToBeAdded);
 
-                if (FileTransferServerConfig.bDebug == true)
-                {
-                    Console.WriteLine("SITCAFileLoadAndReadThread : data has been written into DB Collection");
-                }
+                    if (FileTransferServerConfig.bDebug == true)
+                    {
+                        Console.WriteLine("SITCAFileLoadAndReadThread : data has been written into DB Collection");
+                    }
 
-                // Build debug string for console display.
+                    // Build debug string for console display.
 
-                if (FileTransferServerConfig.bDebug == true)
-                {
-                    string currentChunkStr = DataHelperUtils.ConvertBytesArrayToCharString((int)currentSizeFileRead, 
-                        bytesToBeRead, bytesToBeReadLastChunk);
+                    if (FileTransferServerConfig.bDebug == true)
+                    {
+                        string currentChunkStr = DataHelperUtils.ConvertBytesArrayToCharString((int)currentSizeFileRead,
+                            bytesToBeRead, bytesToBeReadLastChunk);
 
-                    Console.WriteLine("Current string value = " + currentChunkStr);
-                }
+                        Console.WriteLine("Current string value = " + currentChunkStr);
+                    }
 
-                if (FileTransferServerConfig.bDebug == true)
-                {
-                    retValueString += " Bytes read : SubSequent Read , currentOffset = " + currentOffset +
-                    "chunkSize = " + FileTransferServerConfig.chunkSize + " , fileReadRetValue = " + fileReadRetValue;
-                }
+                    if (FileTransferServerConfig.bDebug == true)
+                    {
+                        retValueString += " Bytes read : SubSequent Read , currentOffset = " + currentOffset +
+                        "chunkSize = " + FileTransferServerConfig.chunkSize + " , fileReadRetValue = " + fileReadRetValue;
+                    }
 
-                if (FileTransferServerConfig.bFirstLevelDebug == true)
-                {
+                    if (FileTransferServerConfig.bFirstLevelDebug == true)
+                    {
 
-                    Console.WriteLine("=====================================================");
+                        Console.WriteLine("=====================================================");
 
-                    Console.WriteLine(" , End of read stream , current time = " + DateTime.Now.Hour + ":" +
-                        DateTime.Now.Minute + ":" + DateTime.Now.Second + ":" + DateTime.Now.Millisecond);
+                        Console.WriteLine(" , End of read stream , current time = " + DateTime.Now.Hour + ":" +
+                            DateTime.Now.Minute + ":" + DateTime.Now.Second + ":" + DateTime.Now.Millisecond);
 
-                    Console.WriteLine("=========================================================================");
+                        Console.WriteLine("=========================================================================");
+                    }
                 }
 
             }
@@ -143,12 +144,6 @@ namespace SITCAFileTransferService.Common
 
                 Console.WriteLine("Some error occured while reading input file data : " + e.Message);
 
-                /*
-                if( isTheMutexLocked )
-                {
-                    FileTransferServerConfig.readThreadSyncMutex.ReleaseMutex();
-                }
-                */
             }
 
         }

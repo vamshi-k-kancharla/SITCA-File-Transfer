@@ -62,24 +62,44 @@ namespace SITCAFileTransferService.Controllers
 
                 // ToDo : Retrieve file size automatically.
 
-                long numOfThreads = ( FileTransferServerConfig.fileSize % FileTransferServerConfig.chunkSize == 0 ) ?
+                long numOfSubParts = ( FileTransferServerConfig.fileSize % FileTransferServerConfig.chunkSize == 0 ) ?
                     ( FileTransferServerConfig.fileSize / FileTransferServerConfig.chunkSize ) :
                     ((FileTransferServerConfig.fileSize / FileTransferServerConfig.chunkSize) + 1 );
 
-                long numberOfThreads = numOfThreads;
+                long totalNoOfCurrentThreadParts = 0;
 
-                for ( long threadNum = 0; threadNum < numberOfThreads; threadNum++ )
+                //long numberOfThreads = numOfThreads;
+
+                long numberOfPartsInSubPart = ( numOfSubParts % FileTransferServerConfig.numberOfThreads == 0 ) ?
+                    ( numOfSubParts / FileTransferServerConfig.numberOfThreads ) :
+                    ( numOfSubParts / FileTransferServerConfig.numberOfThreads + 1);
+
+                for ( long currentThreadPart = 0; currentThreadPart < numOfSubParts; 
+                    currentThreadPart += numberOfPartsInSubPart )
                 {
+                    long numberOfPartsInLastChunk = 0;
+
+                    if ( currentThreadPart + numberOfPartsInSubPart > numOfSubParts )
+                    {
+                        numberOfPartsInLastChunk = numOfSubParts - currentThreadPart;
+
+                    }
+
                     LoadThreadObject fileReadParamObj = new LoadThreadObject();
 
                     fileReadParamObj.currentDB = currentDataBase;
                     fileReadParamObj.fileName = fileName;
 
-                    fileReadParamObj.currentOffset = threadNum * FileTransferServerConfig.chunkSize;
-                    fileReadParamObj.currentIterationCount = threadNum;
+                    fileReadParamObj.currentOffset = currentThreadPart * FileTransferServerConfig.chunkSize;
+                    fileReadParamObj.startPart = currentThreadPart;
+
+                    fileReadParamObj.numOfSubParts = (numberOfPartsInLastChunk != 0) ? numberOfPartsInLastChunk :
+                        numberOfPartsInSubPart;
 
                     fileReadParamObj.currentCollection = currentCollection;
                     fileReadParamObj.currentFS = currentFS;
+
+                    totalNoOfCurrentThreadParts = currentThreadPart + fileReadParamObj.numOfSubParts;
 
 
                     if (FileTransferServerConfig.bFirstLevelDebug == true)
@@ -104,9 +124,10 @@ namespace SITCAFileTransferService.Controllers
 
                 // Add Total number of Parts Data
 
-                byte[] noOfPartsByteArray = DataHelperUtils.ConvertIntToByteArray((int)numberOfThreads);
+                byte[] noOfPartsByteArray = DataHelperUtils.ConvertIntToByteArray((int)totalNoOfCurrentThreadParts);
 
-                FilePartsData numberOfFilePartsAddedData = DataHelperUtils.AddDataToCollection((int)numberOfThreads + 1,
+                FilePartsData numberOfFilePartsAddedData = DataHelperUtils.AddDataToCollection(
+                    (int)totalNoOfCurrentThreadParts + 1,
                     "NumberOfFileParts", noOfPartsByteArray);
 
                 currentCollection.InsertOne(numberOfFilePartsAddedData);

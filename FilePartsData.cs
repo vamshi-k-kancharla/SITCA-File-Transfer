@@ -37,6 +37,10 @@ namespace SITCAFileTransferService
 
         public FileStream currentFS;
 
+        public long startPart;
+
+        public long numOfSubParts;
+
     }
 
 }
